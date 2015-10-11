@@ -1,7 +1,6 @@
 rm(list=ls())
-#library(foreach)
-#library(doMC)
-#registerDoMC(4)
+library(parallel)
+mc.cores <- 4
 
 construct_design <- function(w,K,t){
     predesign <- w*outer(t,1:K)
@@ -66,7 +65,7 @@ for(i in 1:nrow(lmc_I)){
     lc_I <- read.table(f)
     K <- 3
     omegas <- get_freqs(1,100,.1/diff(range(lc_I[,1])))
-    rss <- vapply(omegas,compute_rss,c(0),K,lc_I)
+    rss <- mclapply(omegas,compute_rss,c(0),K,lc_I,mc.cores=mc.cores)
     p_act_I[[i]] <- lmc_I[i,3]
     X <- construct_design(2*pi/p_act_I[[i]],K,lc_I[,1])
     beta <- compute_params(2*pi/p_act_I[[i]],K,lc_I[,2],lc_I[,3]^{-2},X)
@@ -78,14 +77,30 @@ for(i in 1:nrow(lmc_I)){
 fit_V <- list()
 #lc_V <- list()
 p_act_V <- list()
-for (i in 1:nrow(lmc_V)) %dopar% {
+for (i in 1:nrow(lmc_V)){
     f <- paste("../lmc/V/",lmc_V[i,1],".dat",sep="")
     lc_V <- read.table(f)
     K <- 3
     omegas <- get_freqs(1,100,.1/diff(range(lc_V[,1])))
-    rss <- vapply(omegas,compute_rss,c(0),K,lc_V)
+    rss <- mclapply(omegas,compute_rss,c(0),K,lc_V,mc.cores=mc.cores)
     p_act_V[[i]] <- lmc_V[i,3]
     X <- construct_design(2*pi/p_act_V[[i]],K,lc_V[,1])
     beta <- compute_params(2*pi/p_act_V[[i]],K,lc_V[,2],lc_V[,3]^{-2},X)
     fit_V[[i]] <- get_sinusoidal_params(beta)
 }
+
+feature_matrix_I <- cbind(data.frame(matrix(unlist(fit_I), nrow=length(fit_I), byrow=T)),lmc_I[,3])
+colnames(feature_matrix_I) <- c("beta0","amp1","amp2","amp3","rho1","rho2","rho3","p")
+
+feature_matrix_V <- cbind(data.frame(matrix(unlist(fit_V), nrow=length(fit_V), byrow=T)),lmc_V[,3])
+colnames(feature_matrix_V) <- c("beta0","amp1","amp2","amp3","rho1","rho2","rho3","p")
+
+### PCA
+
+PC_I = prcomp(feature_matrix_I,center=TRUE,scale.=TRUE)
+PC_V = prcomp(feature_matrix_V,center=TRUE,scale.=TRUE)
+
+summary(PC_I)
+summary(PC_V)
+
+save(list=ls(),file="run1.RData")

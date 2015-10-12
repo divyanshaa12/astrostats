@@ -37,7 +37,7 @@ get_sinusoidal_params <- function(beta){
 }
 
 lmc <- read.table("../lmc.txt", header=TRUE)
-lmc <- lmc[lmc$Class=="Cep_F",]
+#lmc <- lmc[lmc$Class=="Cep_F",]
 
 ## extract data for all the Cepheids
 f_exists_I <- rep(TRUE,nrow(lmc))
@@ -56,14 +56,15 @@ for(i in 1:nrow(lmc)){
 lmc_I <- lmc[f_exists_I,]
 lmc_V <- lmc[f_exists_V,]
 
-## fit all the Cepheids I curve.
+## fit all the I curve.
 fit_I <- list()
-#lc_I <- list()
+class_I <- list()
 p_act_I <- list()
 for(i in 1:nrow(lmc_I)){
     f <- paste("../lmc/I/",lmc_I[i,1],".dat",sep="")
     lc_I <- read.table(f)
     K <- 3
+    class_I[[i]] <- paste(lmc_I[i,2])
     omegas <- get_freqs(1,100,.1/diff(range(lc_I[,1])))
     rss <- mclapply(omegas,compute_rss,c(0),K,lc_I,mc.cores=mc.cores)
     p_act_I[[i]] <- lmc_I[i,3]
@@ -73,14 +74,15 @@ for(i in 1:nrow(lmc_I)){
 }
 
 
-## fit all the Cepheids V curve.
+## fit all the V curve.
 fit_V <- list()
-#lc_V <- list()
+class_V <- list()
 p_act_V <- list()
 for (i in 1:nrow(lmc_V)){
     f <- paste("../lmc/V/",lmc_V[i,1],".dat",sep="")
     lc_V <- read.table(f)
     K <- 3
+    class_V[[i]] <- paste(lmc_V[i,2])
     omegas <- get_freqs(1,100,.1/diff(range(lc_V[,1])))
     rss <- mclapply(omegas,compute_rss,c(0),K,lc_V,mc.cores=mc.cores)
     p_act_V[[i]] <- lmc_V[i,3]
@@ -103,4 +105,27 @@ PC_V = prcomp(feature_matrix_V,center=TRUE,scale.=TRUE)
 summary(PC_I)
 summary(PC_V)
 
-save(list=ls(),file="run1.RData")
+print(PC_I)
+print(PC_V)
+
+save(list=ls(),"run.RData")
+
+#library(rgl)
+#period_ranks <- rank(unlist(p_act_I))
+### phase align light curves, normalized magnitudes, construct data frame
+#lc_I_shift <- list()
+#for(i in 1:length(p_act_I)){
+#    f <- paste("../lmc/I/",lmc_I[i,1],".dat",sep="")
+#    lc_I <- read.table(f)
+#    t <- ((lc_I[,1] + (lmc_I[i,3]*fit_I[[i]]$rho[1])/(2*pi)) %% lmc_I[i,3])/lmc_I[i,3]
+#    m <- lc_I[,2] - mean(lc_I[,2])
+#    lc_I_shift[[i]] <- cbind(rep(period_ranks[i],length(t)),t,m)
+#}
+#dat <- do.call(rbind,lc_I_shift)
+#plot3d(dat[,1],dat[,2],dat[,3],alpha=0.02,xlab="Period Rank",ylab="Phase",zlab="Normalized Magnitude")
+#writeWebGL(filename="cepheids")
+#plot(PC_I$x[,4],PC_I$x[,1])
+#
+#col = rep(c("red","blue"),each=20)
+#plot(PC_I$x[,1], PC_I$x[,2], pch="", main = "Your Plot Title", xlab = "PC 1", ylab = "PC 2")
+#text(PC_I$x[,1], PC_I$x[,2], labels=rownames(PC_I$x), col = col)

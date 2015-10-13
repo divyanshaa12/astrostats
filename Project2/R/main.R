@@ -1,6 +1,6 @@
 rm(list=ls())
-library(parallel)
-mc.cores <- 4
+#library(parallel)
+#mc.cores <- 1
 
 construct_design <- function(w,K,t){
     predesign <- w*outer(t,1:K)
@@ -36,8 +36,20 @@ get_sinusoidal_params <- function(beta){
     return(list(beta0=beta0,amp=amp,rho=rho))
 }
 
-lmc <- read.table("../lmc.txt", header=TRUE)
-#lmc <- lmc[lmc$Class=="Cep_F",]
+lmc_all <- read.table("../lmc.txt", header=TRUE)
+
+# limiting number of light curves for each class to a max of 100.
+classes <- paste(unique(lmc_all[,2]))
+rm(out,tmp)
+tmp <- lmc_all[lmc_all$Class == classes[1],]
+out <- tmp[1:min(100,nrow(tmp)),]
+for (i in 2:length(classes)){
+    tmp <- lmc_all[lmc_all$Class == classes[i],]
+    tmp <- tmp[1:min(100,nrow(tmp)),]
+    out <- rbind(out,tmp)
+}
+
+lmc <- out
 
 ## extract data for all the Cepheids
 f_exists_I <- rep(TRUE,nrow(lmc))
@@ -55,6 +67,9 @@ for(i in 1:nrow(lmc)){
 } 
 lmc_I <- lmc[f_exists_I,]
 lmc_V <- lmc[f_exists_V,]
+lmc_I <- lmc_I[lmc_I$Period >0,]
+lmc_V <- lmc_V[lmc_V$Period >0,]
+
 
 ## fit all the I curve.
 fit_I <- list()
@@ -66,7 +81,8 @@ for(i in 1:nrow(lmc_I)){
     K <- 3
     class_I[[i]] <- paste(lmc_I[i,2])
     omegas <- get_freqs(1,100,.1/diff(range(lc_I[,1])))
-    rss <- mclapply(omegas,compute_rss,c(0),K,lc_I,mc.cores=mc.cores)
+    rss <- vapply(omegas,compute_rss,c(0),K,lc_I)
+#    rss <- mclapply(omegas,compute_rss,c(0),K,lc_I,mc.cores=mc.cores)
     p_act_I[[i]] <- lmc_I[i,3]
     X <- construct_design(2*pi/p_act_I[[i]],K,lc_I[,1])
     beta <- compute_params(2*pi/p_act_I[[i]],K,lc_I[,2],lc_I[,3]^{-2},X)
@@ -84,7 +100,8 @@ for (i in 1:nrow(lmc_V)){
     K <- 3
     class_V[[i]] <- paste(lmc_V[i,2])
     omegas <- get_freqs(1,100,.1/diff(range(lc_V[,1])))
-    rss <- mclapply(omegas,compute_rss,c(0),K,lc_V,mc.cores=mc.cores)
+    rss <- vapply(omegas,compute_rss,c(0),K,lc_V)
+#    rss <- mclapply(omegas,compute_rss,c(0),K,lc_V,mc.cores=mc.cores)
     p_act_V[[i]] <- lmc_V[i,3]
     X <- construct_design(2*pi/p_act_V[[i]],K,lc_V[,1])
     beta <- compute_params(2*pi/p_act_V[[i]],K,lc_V[,2],lc_V[,3]^{-2},X)
@@ -108,7 +125,7 @@ summary(PC_V)
 print(PC_I)
 print(PC_V)
 
-save(list=ls(),"run.RData")
+save(list=ls(),file="run.RData")
 
 #library(rgl)
 #period_ranks <- rank(unlist(p_act_I))
@@ -124,7 +141,7 @@ save(list=ls(),"run.RData")
 #dat <- do.call(rbind,lc_I_shift)
 #plot3d(dat[,1],dat[,2],dat[,3],alpha=0.02,xlab="Period Rank",ylab="Phase",zlab="Normalized Magnitude")
 #writeWebGL(filename="cepheids")
-#plot(PC_I$x[,4],PC_I$x[,1])
+#plot(PC_I$x[,1],PC_I$x[,3])
 #
 #col = rep(c("red","blue"),each=20)
 #plot(PC_I$x[,1], PC_I$x[,2], pch="", main = "Your Plot Title", xlab = "PC 1", ylab = "PC 2")

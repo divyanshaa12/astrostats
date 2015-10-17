@@ -39,14 +39,14 @@ get_sinusoidal_params <- function(beta){
 
 lmc.all <- read.table("../lmc.txt", header=TRUE)
 
-# limiting number of light curves for each class to a max of 10. Just testing
+
 classes <- paste(unique(lmc.all[,2]))
 rm(out,tmp)
 tmp <- lmc.all[lmc.all$Class == classes[1],]
-out <- tmp[1:min(10,nrow(tmp)),]
+out <- tmp[1:nrow(tmp),]
 for (i in 2:length(classes)){
     tmp <- lmc.all[lmc.all$Class == classes[i],]
-    tmp <- tmp[1:min(10,nrow(tmp)),]
+    tmp <- tmp[1:nrow(tmp),]
     out <- rbind(out,tmp)
 }
 
